@@ -1,23 +1,22 @@
-import React from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { MoonIcon, SunIcon, LogOutIcon, UserIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../context/ThemeContext";
+import { MoonIcon, SunIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { motion } from "framer-motion";
+
 export const Navbar: React.FC = () => {
-  const {
-    user,
-    theme,
-    logout,
-    toggleTheme
-  } = useAuth();
-  return <motion.nav initial={{
-    y: -20,
-    opacity: 0
-  }} animate={{
-    y: 0,
-    opacity: 1
-  }} className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700"
+    >
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
+          {/* Left Section - Branding */}
           <div className="flex items-center space-x-4">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
               CMS
@@ -26,7 +25,10 @@ export const Navbar: React.FC = () => {
               Commodities Management System
             </span>
           </div>
+
+          {/* Right Section - User, Theme, Logout */}
           <div className="flex items-center space-x-4">
+            {/* User Info */}
             <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 dark:bg-gray-700 rounded-lg">
               <UserIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -36,15 +38,31 @@ export const Navbar: React.FC = () => {
                 {user?.role}
               </span>
             </div>
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle theme">
-              {theme === 'light' ? <MoonIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" /> : <SunIcon className="w-5 h-5 text-yellow-400" />}
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === "light" ? (
+                <MoonIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              ) : (
+                <SunIcon className="w-5 h-5 text-yellow-400" />
+              )}
             </button>
-            <button onClick={logout} className="flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+
+            {/* Logout Button */}
+            <button
+              onClick={logout}
+              className="flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+            >
               <LogOutIcon className="w-4 h-4" />
               <span className="text-sm font-medium">Logout</span>
             </button>
           </div>
         </div>
       </div>
-    </motion.nav>;
+    </motion.nav>
+  );
 };

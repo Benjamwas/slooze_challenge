@@ -1,106 +1,101 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { AddProductModal } from '../components/AddProductModal';
-import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
-import { PlusIcon, SearchIcon, EditIcon, TrashIcon } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../hooks/useAuth";
+import axios from "axios";
+import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { PlusIcon, SearchIcon, EditIcon, TrashIcon, XIcon } from "lucide-react";
+
 interface Product {
-  id: string;
+  id?: number;
   name: string;
   category: string;
   price: number;
   stock: number;
 }
-const mockProducts: Product[] = [{
-  id: '1',
-  name: 'Laptop Dell XPS',
-  category: 'Electronics',
-  price: 1299.99,
-  stock: 15
-}, {
-  id: '2',
-  name: 'Office Chair',
-  category: 'Furniture',
-  price: 249.99,
-  stock: 8
-}, {
-  id: '3',
-  name: 'Cotton T-Shirt',
-  category: 'Clothing',
-  price: 19.99,
-  stock: 50
-}, {
-  id: '4',
-  name: 'Rice 5kg',
-  category: 'Food',
-  price: 12.99,
-  stock: 3
-}, {
-  id: '5',
-  name: 'Power Drill',
-  category: 'Tools',
-  price: 89.99,
-  stock: 20
-}, {
-  id: '6',
-  name: 'Wireless Mouse',
-  category: 'Electronics',
-  price: 29.99,
-  stock: 35
-}];
+
+const API_URL = "http://localhost:5000/products"; // JSON Server endpoint
+
 export const Products: React.FC = () => {
-  const {
-    user
-  } = useAuth();
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const categories = ["Electronics", "Furniture", "Clothing", "Food", "Tools"];
+
+  // Fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get<Product[]>(API_URL);
+        setProducts(res.data);
+      } catch (error) {
+        toast.error("Failed to load products");
+        console.error(error);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Filtered products for search and category
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || product.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
-  const handleAddProduct = (product: Product) => {
-    if (editingProduct) {
-      setProducts(prev => prev.map(p => p.id === editingProduct.id ? {
-        ...product,
-        id: editingProduct.id
-      } : p));
-    } else {
-      setProducts(prev => [...prev, {
-        ...product,
-        id: Date.now().toString()
-      }]);
+
+  // Add or Edit product
+  const handleAddProduct = async (product: Product) => {
+    try {
+      if (editingProduct) {
+        const res = await axios.put<Product>(
+          `${API_URL}/${editingProduct.id}`,
+          product
+        );
+        setProducts((prev) =>
+          prev.map((p) => (p.id === editingProduct.id ? res.data : p))
+        );
+        toast.success("Product updated successfully");
+      } else {
+        const res = await axios.post<Product>(API_URL, product);
+        setProducts((prev) => [...prev, res.data]);
+        toast.success("Product added successfully");
+      }
+      setIsModalOpen(false);
+      setEditingProduct(null);
+    } catch (error) {
+      toast.error("Failed to save product");
+      console.error(error);
     }
-    setEditingProduct(undefined);
   };
-  const handleEdit = (product: Product) => {
-    if (user?.role !== 'Manager') {
-      toast.error('Only managers can edit products');
+
+  // Delete product
+  const handleDelete = async (id: number | undefined) => {
+    if (user?.role !== "Manager") {
+      toast.error("Only managers can delete products");
       return;
     }
-    setEditingProduct(product);
-    setIsModalOpen(true);
-  };
-  const handleDelete = (id: string) => {
-    if (user?.role !== 'Manager') {
-      toast.error('Only managers can delete products');
-      return;
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Product deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete product");
+      console.error(error);
     }
-    setProducts(prev => prev.filter(p => p.id !== id));
-    toast.success('Product deleted successfully');
   };
-  const categories = ['Electronics', 'Furniture', 'Clothing', 'Food', 'Tools'];
-  return <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <motion.div initial={{
-      opacity: 0,
-      y: 20
-    }} animate={{
-      opacity: 1,
-      y: 0
-    }} className="mb-6">
+
+  return (
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">
@@ -110,26 +105,47 @@ export const Products: React.FC = () => {
               Manage your commodities and stock levels
             </p>
           </div>
-          {user?.role === 'Manager' && <button onClick={() => {
-          setEditingProduct(undefined);
-          setIsModalOpen(true);
-        }} className="flex items-center space-x-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors shadow-lg">
+          {user?.role === "Manager" && (
+            <button
+              onClick={() => {
+                setEditingProduct(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors shadow-lg"
+            >
               <PlusIcon className="w-5 h-5" />
               <span className="font-semibold">Add Product</span>
-            </button>}
+            </button>
+          )}
         </div>
+
+        {/* Search and Filter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input type="text" placeholder="Search products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
             <option value="">All Categories</option>
-            {categories.map(cat => <option key={cat} value={cat}>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
                 {cat}
-              </option>)}
+              </option>
+            ))}
           </select>
         </div>
+
+        {/* Products Table */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -147,21 +163,22 @@ export const Products: React.FC = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     Stock
                   </th>
-                  {user?.role === 'Manager' && <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  {user?.role === "Manager" && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       Actions
-                    </th>}
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredProducts.map((product, index) => <motion.tr key={product.id} initial={{
-                opacity: 0,
-                x: -20
-              }} animate={{
-                opacity: 1,
-                x: 0
-              }} transition={{
-                delay: index * 0.05
-              }} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                {filteredProducts.map((product, index) => (
+                  <motion.tr
+                    key={product.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {product.name}
@@ -176,29 +193,163 @@ export const Products: React.FC = () => {
                       ${product.price.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${product.stock < 10 ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'}`}>
+                      <span
+                        className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                          product.stock < 10
+                            ? "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+                            : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                        }`}
+                      >
                         {product.stock} units
                       </span>
                     </td>
-                    {user?.role === 'Manager' && <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {user?.role === "Manager" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex space-x-2">
-                          <button onClick={() => handleEdit(product)} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                          <button
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          >
                             <EditIcon className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDelete(product.id)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          >
                             <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
-                      </td>}
-                  </motion.tr>)}
+                      </td>
+                    )}
+                  </motion.tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       </motion.div>
-      <AddProductModal isOpen={isModalOpen} onClose={() => {
-      setIsModalOpen(false);
-      setEditingProduct(undefined);
-    }} onSubmit={handleAddProduct} product={editingProduct} />
-    </div>;
+
+      {/* Add Product Modal */}
+      {isModalOpen && (
+        <AddProductModal
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProduct(null);
+          }}
+          onSubmit={handleAddProduct}
+          product={editingProduct || undefined}
+          categories={categories}
+        />
+      )}
+    </div>
+  );
+};
+
+// ---------- AddProductModal ----------
+interface AddProductModalProps {
+  onClose: () => void;
+  onSubmit: (product: Product) => void;
+  product?: Product;
+  categories: string[];
+}
+
+const AddProductModal: React.FC<AddProductModalProps> = ({
+  onClose,
+  onSubmit,
+  product,
+  categories,
+}) => {
+  const [form, setForm] = useState<Product>(
+    product || { name: "", category: "", price: 0, stock: 0 }
+  );
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "price" || name === "stock" ? Number(value) : value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.category || !form.price || !form.stock) {
+      toast.error("All fields are required");
+      return;
+    }
+    onSubmit(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-md"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+            {product ? "Edit Product" : "Add Product"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <XIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Product Name"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            name="price"
+            value={form.price}
+            onChange={handleChange}
+            placeholder="Price"
+            step="0.01"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            type="number"
+            name="stock"
+            value={form.stock}
+            onChange={handleChange}
+            placeholder="Stock Quantity"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <button
+            type="submit"
+            className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl shadow-lg transition-colors"
+          >
+            {product ? "Update Product" : "Add Product"}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
 };
