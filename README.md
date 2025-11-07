@@ -42,6 +42,14 @@ This system provides different dashboard experiences for **admins, managers, and
 
 ---
 
+Login Details
+Role: Manager
+Credentials- email: manager@cms.com
+             password: man12345
+ Role: StoreKeeper
+ Credentials- email: keeper@cms.com
+              password: store12345
+
 ## ⚙️ Installation & Setup
 
 Follow these steps to set up and run the project locally:
